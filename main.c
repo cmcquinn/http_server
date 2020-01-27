@@ -11,11 +11,40 @@
 
 #include "http.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-void usage() {
+#define DEFAULT_PORT "1024"
+#define UNDERLINE(x) "\033[4m" x "\033[m"
 
+void usage(char *argv[]) {
+    printf("Usage: %s [options] file\n", argv[0]);
+    printf(" -p " UNDERLINE("PORT") "\tListen for connections on " UNDERLINE(
+               "PORT") ". Default is port %s\n",
+           DEFAULT_PORT);
+    printf(" -s " UNDERLINE("SIZE") "\tSet recieve size in bytes\n");
 }
 
 int main(int argc, char *argv[]) {
-    printf("http server\n");
+    int opt;
+    const char *port = DEFAULT_PORT;
+    unsigned int size;
+
+    while ((opt = getopt(argc, argv, ":p:s:")) != -1) {
+        switch (opt) {
+            case 'p':
+                port = optarg;
+                break;
+
+            case 's':
+                size = (int)atoi(optarg);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    usage(argv);
+    printf("Port: %s, Size %d\n", port, size);
 }

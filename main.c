@@ -27,7 +27,7 @@ void usage(char *argv[]) {
 
 int main(int argc, char *argv[]) {
     int opt;
-    const char *port = DEFAULT_PORT;
+    char *port = DEFAULT_PORT;
     unsigned int size;
 
     while ((opt = getopt(argc, argv, ":p:s:")) != -1) {
@@ -41,10 +41,12 @@ int main(int argc, char *argv[]) {
                 break;
 
             default:
+                usage(argv);
                 break;
         }
     }
 
-    usage(argv);
-    printf("Port: %s, Size %d\n", port, size);
+    http_server_init(port);
+    http_server_exit();
+    return 0;
 }

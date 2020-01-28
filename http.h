@@ -3,16 +3,21 @@
 
 #include <stddef.h>
 
-#define HTTP_ERROR -1
+#define HTTP_ERROR   -1
 #define HTTP_SUCCESS 0
 
 /**
  * @brief Initialize the http server.
- * 
+ *
  * @param port Port to listen for connections on.
- * @return int HTTP_ERROR on error, HTTP_SUCCESS otherwise.
  */
-int http_server_init(const char* port);
+void http_server_init(char *port);
+
+/**
+ * @brief Cleans up the server and exits.
+ *
+ */
+void http_server_exit();
 
 /**
  * @brief Set length in bytes for recieving data.

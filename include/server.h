@@ -1,35 +1,35 @@
-#ifndef HTTP_H
-#define HTTP_H
+#ifndef SERVER_H
+#define SERVER_H
 
 #include <stddef.h>
 
-#define HTTP_ERROR   -1
-#define HTTP_SUCCESS 0
+#define SERVER_ERROR   -1
+#define SERVER_SUCCESS 0
 
 /**
  * @brief Initialize the http server.
  *
  * @param port Port to listen for connections on.
  */
-void http_server_init(char *port);
+void server_init(char *port);
 
 /**
  * @brief Cleans up the server and exits.
  *
  */
-void http_server_exit();
+void server_exit();
 
 /**
  * @brief Set length in bytes for recieving data.
  *
  * @param len Length in bytes.
  */
-void http_set_recv_len(size_t len);
+void server_set_recv_len(size_t len);
 
 /**
  * @brief Get the recieve length in bytes.
  *
  */
-size_t http_get_recv_len();
+size_t server_get_recv_len();
 
-#endif // HTTP_H
+#endif // SERVER_H

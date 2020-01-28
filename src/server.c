@@ -1,5 +1,5 @@
 /**
- * @file http.c
+ * @file server.c
  * @author Cameron McQuinn (cameron.mcquinn@gmail.com)
  * @brief Basic http server implemented in C
  * @version 0.1
@@ -33,7 +33,7 @@ static int sock;
  *
  * @param port Port to listen for connections on.
  */
-void http_server_init(char *port) {
+void server_init(char *port) {
     int status;
     struct addrinfo hints;
 
@@ -97,7 +97,7 @@ void http_server_init(char *port) {
  * @brief Cleans up the server.
  *
  */
-void http_server_exit() {
+void server_exit() {
     freeaddrinfo(servinfo); // free the linked-list
 }
 
@@ -106,7 +106,7 @@ void http_server_exit() {
  *
  * @param len Length in bytes.
  */
-void http_set_recv_len(size_t len) {
+void server_set_recv_len(size_t len) {
     recvlen = len;
 }
 
@@ -114,6 +114,6 @@ void http_set_recv_len(size_t len) {
  * @brief Get the recieve length in bytes.
  *
  */
-size_t http_get_recv_len() {
+size_t server_get_recv_len() {
     return recvlen;
 }

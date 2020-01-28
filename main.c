@@ -1,6 +1,6 @@
 /**
  * @file main.c
- * @author your name (you@domain.com)
+ * @author Cameron McQuinn (cameron.mcquinn@gmail.com)
  * @brief
  * @version 0.1
  * @date 2020-01-16
@@ -10,6 +10,7 @@
  */
 
 #include "http.h"
+#include "server.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    http_server_init(port);
-    http_server_exit();
+    server_init(port);
+    server_exit();
     return 0;
 }

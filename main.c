@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
 
             default:
                 usage(argv);
+                exit(EXIT_FAILURE);
                 break;
         }
     }

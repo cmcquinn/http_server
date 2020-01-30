@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,10 +22,18 @@
 
 #include "http.h"
 
-#define DEFAULT_RECV_LEN 4 //!< Default length for recieve operations
-#define BACKLOG          5 //!< Number of connections allowed on the incoming queue
+#define DEFAULT_RECV_LEN  1024 //!< Default length for recieve operations
+#define BACKLOG           5    //!< Number of connections allowed on the incoming queue
+#define SLEEPTIME_SECONDS 5 //!< Time in seconds that each thread should sleep for before returning
 
-static size_t recvlen = DEFAULT_RECV_LEN;
+#define handle_error_en(en, msg)                                                                   \
+    do {                                                                                           \
+        errno = en;                                                                                \
+        perror(msg);                                                                               \
+        exit(EXIT_FAILURE);                                                                        \
+    } while (0)
+
+static size_t recieve_len = DEFAULT_RECV_LEN;
 static struct addrinfo *servinfo;
 static int sock;
 
@@ -66,31 +75,63 @@ void server_init(char *port) {
         fprintf(stderr, "bind error: %s\n", strerror(errno));
         exit(1);
     }
+}
 
-    // listen for connections
-    listen(sock, BACKLOG);
-
-    // accept connections
-    struct sockaddr_storage their_addr;
-    socklen_t addr_size;
-    int conn_fd;
-    addr_size = sizeof(their_addr);
-
-    if ((conn_fd = accept(sock, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
-        perror("accept");
-        exit(1);
-    }
-
-    char *buf = (char *)malloc(recvlen * sizeof(char));
-    recv(conn_fd, buf, recvlen, 0);
-
-    close(conn_fd);
-
+/**
+ * @brief Routine for threads to handle connections.
+ *
+ * @param fd Socket file descriptor.
+ */
+void *connection_worker(void *fd) {
+    char *buf = (char *)malloc(recieve_len * sizeof(char));
+    int _fd   = (int)fd;
+    recv(_fd, buf, recieve_len, 0);
+    close(_fd);
     printf("Got message %s\n", buf);
-
     free(buf);
 
-    // ... do everything until you don't need servinfo anymore ....
+    // Sleep for a bit to simulate doing real work
+    printf("Sleeping");
+    for (int i = 0; i < SLEEPTIME_SECONDS; i++) {
+        sleep(1);
+        printf(".");
+        fflush(stdout);
+    }
+    printf("\n");
+    pthread_exit(NULL);
+}
+
+/**
+ * @brief Busy loop that waits for events and creates threads to handle them.
+ *
+ */
+void server_spin() {
+    // listen for connections
+    listen(sock, BACKLOG);
+    pthread_t threadid;
+    pthread_attr_t attr;
+
+    // setup pthread attributes
+    pthread_attr_init(&attr);
+    int err;
+    if ((err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) != 0)
+        handle_error_en(err, "pthread_attr_setdetachstate");
+
+    while (1) {
+        // accept connections
+        struct sockaddr_storage their_addr;
+        socklen_t addr_size;
+        int conn_fd;
+        addr_size = sizeof(their_addr);
+
+        if ((conn_fd = accept(sock, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
+            perror("accept");
+            exit(1);
+        }
+
+        // dispatch a thread to handle the connection
+        pthread_create(&threadid, &attr, connection_worker, (void *)conn_fd);
+    }
 }
 
 /**
@@ -107,7 +148,7 @@ void server_exit() {
  * @param len Length in bytes.
  */
 void server_set_recv_len(size_t len) {
-    recvlen = len;
+    recieve_len = len;
 }
 
 /**
@@ -115,5 +156,5 @@ void server_set_recv_len(size_t len) {
  *
  */
 size_t server_get_recv_len() {
-    return recvlen;
+    return recieve_len;
 }

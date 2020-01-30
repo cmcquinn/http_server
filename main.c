@@ -48,6 +48,8 @@ int main(int argc, char *argv[]) {
     }
 
     server_init(port);
+    server_set_recv_len(size);
+    server_spin();
     server_exit();
     return 0;
 }

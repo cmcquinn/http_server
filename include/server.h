@@ -14,6 +14,12 @@
 void server_init(char *port);
 
 /**
+ * @brief Busy loop that waits for events and creates threads to handle them.
+ *
+ */
+void server_spin();
+
+/**
  * @brief Cleans up the server and exits.
  *
  */

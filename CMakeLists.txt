@@ -12,3 +12,5 @@ set(MODULE_SRCS ${MODULE_SRC_DIR}/server.c ${MODULE_SRC_DIR}/http.c)
 include_directories(${MODULE_INCLUDE_DIR})
 
 add_executable(server ${CMAKE_SOURCE_DIR}/main.c ${MODULE_SRCS})
+
+target_link_libraries(server pthread)

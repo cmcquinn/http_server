@@ -1,7 +1,7 @@
 /**
  * @file server.c
  * @author Cameron McQuinn (cameron.mcquinn@gmail.com)
- * @brief Basic http server implemented in C
+ * @brief Basic HTTP server implemented in C
  * @version 0.1
  * @date 2020-01-24
  *
@@ -26,19 +26,12 @@
 #define BACKLOG           5    //!< Number of connections allowed on the incoming queue
 #define SLEEPTIME_SECONDS 5 //!< Time in seconds that each thread should sleep for before returning
 
-#define handle_error_en(en, msg)                                                                   \
-    do {                                                                                           \
-        errno = en;                                                                                \
-        perror(msg);                                                                               \
-        exit(EXIT_FAILURE);                                                                        \
-    } while (0)
-
 static size_t recieve_len = DEFAULT_RECV_LEN;
 static struct addrinfo *servinfo;
 static int sock;
 
 /**
- * @brief Initialize the http server.
+ * @brief Initialize the HTTP server.
  *
  * @param port Port to listen for connections on.
  */
@@ -53,27 +46,27 @@ void server_init(char *port) {
 
     if ((status = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // setup the socket
     if ((sock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1) {
         fprintf(stderr, "socket error: %s\n", strerror(errno));
         freeaddrinfo(servinfo);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // lose the pesky "Address already in use" error message
     int opt = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt) == -1) {
         perror("setsockopt");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // bind the socket to a port
     if (bind(sock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
         fprintf(stderr, "bind error: %s\n", strerror(errno));
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -84,10 +77,10 @@ void server_init(char *port) {
  */
 void *connection_worker(void *fd) {
     char *buf = (char *)malloc(recieve_len * sizeof(char));
-    int _fd   = (int)fd;
+    int _fd   = *(int *)fd;
     recv(_fd, buf, recieve_len, 0);
-    close(_fd);
     printf("Got message %s\n", buf);
+    close(_fd);
     free(buf);
 
     // Sleep for a bit to simulate doing real work
@@ -114,8 +107,10 @@ void server_spin() {
     // setup pthread attributes
     pthread_attr_init(&attr);
     int err;
-    if ((err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) != 0)
-        handle_error_en(err, "pthread_attr_setdetachstate");
+    if ((err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) != 0) {
+        perror("pthread_attr_setdetachstate");
+        exit(EXIT_FAILURE);
+    }
 
     while (1) {
         // accept connections
@@ -126,11 +121,11 @@ void server_spin() {
 
         if ((conn_fd = accept(sock, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
             perror("accept");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         // dispatch a thread to handle the connection
-        pthread_create(&threadid, &attr, connection_worker, (void *)conn_fd);
+        pthread_create(&threadid, &attr, connection_worker, (void *)&conn_fd);
     }
 }
 

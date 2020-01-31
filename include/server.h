@@ -1,13 +1,24 @@
+/**
+ * @file server.h
+ * @author Cameron McQuinn (cameron.mcquinn@gmail.com)
+ * @brief Function prototypes for a basic HTTP server implemented in C.
+ * @version 0.1
+ * @date 2020-01-24
+ *
+ * @copyright Copyright (c) 2020
+ *
+ */
+
 #ifndef SERVER_H
 #define SERVER_H
 
 #include <stddef.h>
 
-#define SERVER_ERROR   -1
-#define SERVER_SUCCESS 0
+#define SERVER_ERROR   -1 //!< Return code indicating error.
+#define SERVER_SUCCESS 0  //!< Return code indicating success.
 
 /**
- * @brief Initialize the http server.
+ * @brief Initialize the HTTP server.
  *
  * @param port Port to listen for connections on.
  */

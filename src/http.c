@@ -10,17 +10,16 @@
  */
 
 #include "http.h"
+#include <malloc.h>
 #include <string.h>
 
-#define HTTP_GET_STR     "GET"     //!< HTTP GET method
-#define HTTP_HEAD_STR    "HEAD"    //!< HTTP HEAD method
-#define HTTP_POST_STR    "POST"    //!< HTTP POST method
-#define HTTP_PUT_STR     "PUT"     //!< HTTP PUT method
-#define HTTP_DELETE_STR  "DELETE " //!< HTTP DELETE method
-#define HTTP_CONNECT_STR "CONNECT" //!< HTTP CONNECT method
-#define HTTP_OPTIONS_STR "OPTIONS" //!< HTTP OPTIONS method
-#define HTTP_TRACE_STR   "TRACE"   //!< HTTP TRACE method
-#define HTTP_PATCH_STR   "PATCH"   //!< HTTP PATCH method
+#define HTTP_HOST_FIELD "Host: " //!< HTTP Host field name
+#define HTTP_LINE_END   "\r\n"   //!< End of line in HTTP message
+
+//! Array with the string contents of the HTTP methods in order of their appearance in enum http_method.
+static const char *const http_methods[] = {
+    "", "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH",
+};
 
 /**
  * @brief Check if a character buffer contains a valid HTTP request.
@@ -32,12 +31,13 @@
 bool http_contains_valid_message(const char *buf) {
     const char *ptr;
 
-    // find GET
-    if ((ptr = strstr(buf, "GET ")) == NULL)
+    // find HTTP method
+    struct http_message msg;
+    if (http_get_method(buf, &msg) == NULL)
         return false;
 
     // find HTTP/1.1
-    if ((ptr = strstr(ptr, "HTTP/1.1\r\n")) == NULL)
+    if ((ptr = strstr(ptr, "HTTP/1.1" HTTP_LINE_END)) == NULL)
         return false;
 
     // find Host field
@@ -45,7 +45,7 @@ bool http_contains_valid_message(const char *buf) {
         return false;
 
     // find end of host field line
-    if ((ptr = strstr(ptr, "\r\n")) == NULL)
+    if ((ptr = strstr(ptr, HTTP_LINE_END)) == NULL)
         return false;
 
     // at the point we have a minimal HTTP/1.1 message
@@ -57,34 +57,68 @@ bool http_contains_valid_message(const char *buf) {
  * struct http_message.
  *
  * @param buf Char buf containing a valid HTTP message.
- * @param message Pointer to a struct http_message to be filled with the contents of the message.
+ * @param message Pointer to a struct http_message. The \p method field of \p message will be set.
  * @return const char* Pointer to next character after the end of the HTTP method in \p buf if an
  * HTTP method is found, NULL otherwise.
  */
 static const char *http_get_method(const char *buf, struct http_message *message) {
     const char *pch = NULL;
-    if ((pch = strstr(buf, HTTP_GET_STR)) != NULL) {
-        message->method = HTTP_GET;
-    } else if ((pch = strstr(buf, HTTP_HEAD_STR)) != NULL) {
-        message->method = HTTP_HEAD;
-    } else if ((pch = strstr(buf, HTTP_POST_STR)) != NULL) {
-        message->method = HTTP_POST;
-    } else if ((pch = strstr(buf, HTTP_PUT_STR)) != NULL) {
-        message->method = HTTP_PUT;
-    } else if ((pch = strstr(buf, HTTP_DELETE_STR)) != NULL) {
-        message->method = HTTP_DELETE;
-    } else if ((pch = strstr(buf, HTTP_CONNECT_STR)) != NULL) {
-        message->method = HTTP_CONNECT;
-    } else if ((pch = strstr(buf, HTTP_OPTIONS_STR)) != NULL) {
-        message->method = HTTP_OPTIONS;
-    } else if ((pch = strstr(buf, HTTP_TRACE_STR)) != NULL) {
-        message->method = HTTP_TRACE;
-    } else if ((pch = strstr(buf, HTTP_PATCH_STR)) != NULL) {
-        message->method = HTTP_PATCH;
-    } else {
-        message->method = HTTP_METHOD_NONE;
+    message->method = HTTP_METHOD_EMPTY;
+
+    for (int i = 0; i < HTTP_METHOD_COUNT; i++) {
+        if ((pch = strstr(buf, http_methods[i])) != NULL)
+            message->method = i;
     }
-    return strstr(pch, " "); // find space after method
+
+    return message->method != HTTP_METHOD_EMPTY ? strstr(pch, " ") : NULL; // find space after method
+}
+
+/**
+ * @brief Extract the resource requested from a char buf containing an HTTP message and put it into
+ * a struct http_message.
+ *
+ * @param buf Char buf containing a valid HTTP message.
+ * @param message Pointer to a struct http_message. The \p resource field of \p message will be set.
+ * @return const char* Pointer to next character after the resource path in \p buf .
+ */
+static const char *http_get_resource(const char *buf, struct http_message *message) {
+    const char *start = strchr(buf, '/'); // find '/' at beginning of path
+
+    // find end of request path
+    const char *end = start;
+    while (*++end != ' ')
+        ;
+
+    // set resource field of struct http_message
+    size_t len        = end - start + 1;
+    message->resource = (char *)malloc(len);
+    strncat(message->resource, start, len); // copy resource field and append null terminator
+
+    return end;
+}
+
+/**
+ * @brief Extract the hostname from a char buf containing an HTTP message and put it into a struct
+ * http_message.
+ *
+ * @param buf Char buf containing a valid HTTP message.
+ * @param message Pointer to a struct http_message. The \p headers field of \p message will be
+ * modified.
+ * @return const char* Pointer to next character after the hostname in \p buf .
+ */
+static const char *http_get_host(const char *buf, struct http_message *message) {
+    const char *start = strstr(buf, HTTP_HOST_FIELD); // find start of Host field
+    start             = strchr(start, ' ');           // find space before hostname
+    start++;                                          // get pointer to first char of hostname
+    const char *end = strstr(start, HTTP_LINE_END);   // find end of line
+
+    // set header field of struct http_message
+    size_t len      = end - start + 1;
+    message->header = (char *)malloc(len);
+    strncat(message->header, start, len); // copy host field and append null terminator
+
+    // return pointer to next char after end of Host field
+    return end + strlen(HTTP_LINE_END);
 }
 
 /**
@@ -92,11 +126,14 @@ static const char *http_get_method(const char *buf, struct http_message *message
  *
  * @param buf Char buf containing a valid HTTP message.
  * @param message Pointer to a struct http_message to be filled with the contents of the message.
- * @return int HTTP_SUCCESS if \p buf contains a valid HTTP message, HTTP_ERROR otherwise.
+ * @return const char* Pointer to the next character in \p buf after the HTTP message.
  */
-int http_extract_message(const char *buf, struct http_message *message) {
+const char *http_extract_message(const char *buf, struct http_message *message) {
     const char *pch;
     pch = http_get_method(buf, message);
+    pch = http_get_resource(pch, message);
+    pch = http_get_host(pch, message);
+    return pch;
 }
 
 /**

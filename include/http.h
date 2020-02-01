@@ -19,24 +19,25 @@
 
 //! Enum representing the different possible HTTP methods.
 typedef enum http_method {
-    HTTP_GET,         //!< HTTP GET method
-    HTTP_HEAD,        //!< HTTP HEAD method
-    HTTP_POST,        //!< HTTP POST method
-    HTTP_PUT,         //!< HTTP PUT method
-    HTTP_DELETE,      //!< HTTP DELETE method
-    HTTP_CONNECT,     //!< HTTP CONNECT method
-    HTTP_OPTIONS,     //!< HTTP OPTIONS method
-    HTTP_TRACE,       //!< HTTP TRACE method
-    HTTP_PATCH,       //!< HTTP PATCH method
-    HTTP_METHOD_NONE, //!< No HTTP method found
+    HTTP_METHOD_EMPTY, //!< No method found
+    HTTP_GET,          //!< HTTP GET method
+    HTTP_HEAD,         //!< HTTP HEAD method
+    HTTP_POST,         //!< HTTP POST method
+    HTTP_PUT,          //!< HTTP PUT method
+    HTTP_DELETE,       //!< HTTP DELETE method
+    HTTP_CONNECT,      //!< HTTP CONNECT method
+    HTTP_OPTIONS,      //!< HTTP OPTIONS method
+    HTTP_TRACE,        //!< HTTP TRACE method
+    HTTP_PATCH,        //!< HTTP PATCH method
+    HTTP_METHOD_COUNT, //!< Number of HTTP methods
 } http_method_t;
 
 //! Struct represending an HTTP message.
 struct http_message {
     http_method_t method; /**< HTTP method specified in the message. */
-    const char *resource; /**< Path to the requested resource. */
-    const char *header;   /**< HTTP header fields. */
-    const char *body;     /**< Message body */
+    char *resource;       /**< Path to the requested resource. */
+    char *header;         /**< HTTP header fields. */
+    char *body;           /**< Message body */
 };
 
 /**
@@ -53,9 +54,9 @@ bool http_contains_valid_message(const char *buf);
  *
  * @param buf Char buf containing a valid HTTP message.
  * @param message Pointer to a struct http_message to be filled with the contents of the message.
- * @return int HTTP_SUCCESS if \p buf contains a valid HTTP message, HTTP_ERROR otherwise.
+ * @return const char* Pointer to the next character in \p buf after the HTTP message.
  */
-int http_extract_message(const char *buf, struct http_message *message);
+const char *http_extract_message(const char *buf, struct http_message *message);
 
 /**
  * @brief Format a response to an HTTP message containing a request.

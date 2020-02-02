@@ -69,6 +69,13 @@ const char *http_extract_message(const char *buf, struct http_message *message);
 int http_prepare_response(struct http_message *message, struct http_message *response);
 
 /**
+ * @brief Initialize a struct http_message to default values;
+ * 
+ * @param message Pointer to a struct http_message.
+ */
+void http_init_struct_message(struct http_message *message);
+
+/**
  * @brief Free memory allocated for the fields of a struct http_message
  * 
  * @param message Pointer to an http_message struct containing pointers to allocated memory.

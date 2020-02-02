@@ -93,6 +93,7 @@ void *connection_worker(void *fd) {
     } while (!http_contains_valid_message(buf));
 
     struct http_message msg;
+    http_init_struct_message(&msg);
     http_extract_message(buf, &msg);
     
     printf("Got message %s\n", buf);

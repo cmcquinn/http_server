@@ -155,6 +155,13 @@ const char *http_extract_message(const char *buf, struct http_message *message) 
  */
 int http_prepare_response(struct http_message *message, struct http_message *response);
 
+void http_init_struct_message(struct http_message *message) {
+    message->method = HTTP_METHOD_EMPTY;
+    message->resource = NULL;
+    message->header = NULL;
+    message->body = NULL;
+}
+
 /**
  * @brief Free memory allocated for the fields of a struct http_message
  *

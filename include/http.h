@@ -35,6 +35,7 @@ typedef enum http_method {
 //! Struct represending an HTTP message.
 struct http_message {
     http_method_t method; /**< HTTP method specified in the message. */
+    char *status;         //!< HTTP status field
     char *resource;       /**< Path to the requested resource. */
     char *header;         /**< HTTP header fields. */
     char *body;           /**< Message body */
@@ -64,20 +65,19 @@ const char *http_extract_message(const char *buf, struct http_message *message);
  * @param message Pointer to an http_message struct containing a request.
  * @param response Pointer to an http_message struct which will be filled with the response to the
  * HTTP message represented by \p message.
- * @return int HTTP_SUCCESS if \p message contains a valid request, HTTP_ERROR otherwise.
  */
-int http_prepare_response(struct http_message *message, struct http_message *response);
+void http_prepare_response(struct http_message *message, struct http_message *response);
 
 /**
  * @brief Initialize a struct http_message to default values;
- * 
+ *
  * @param message Pointer to a struct http_message.
  */
 void http_init_struct_message(struct http_message *message);
 
 /**
  * @brief Free memory allocated for the fields of a struct http_message
- * 
+ *
  * @param message Pointer to an http_message struct containing pointers to allocated memory.
  */
 void http_free_struct_message(struct http_message *message);

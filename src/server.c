@@ -98,6 +98,11 @@ void *connection_worker(void *fd) {
     http_extract_message(buf, &msg);
 
     printf("Got message %s\n", buf);
+
+    struct http_message rsp;
+    http_init_struct_message(&rsp);
+    http_prepare_response(&msg, &rsp);
+
     close(_fd);
     free(buf);
     http_free_struct_message(&msg);

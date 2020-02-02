@@ -1,5 +1,5 @@
 /**
- * @file http.c
+ * @f http.c
  * @author Cameron McQuinn (cameron.mcquinn@gmail.com)
  * @brief HTTP parsing module
  * @version 0.1
@@ -10,11 +10,17 @@
  */
 
 #include "http.h"
+#include <errno.h>
+#include <fcntl.h>
 #include <malloc.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-#define HTTP_HOST_FIELD "Host: " //!< HTTP Host field name
-#define HTTP_LINE_END   "\r\n"   //!< End of line in HTTP message
+#define HTTP_HOST_FIELD   "Host: "                      //!< HTTP Host field name
+#define HTTP_LINE_END     "\r\n"                        //!< End of line in HTTP message
+#define HTTP_STATUS_OK    "HTTP/1.1 200 OK"             //!< HTTP OK status code
+#define HTTP_STATUS_ERROR "HTTP/1.1 404 File Not Found" //!< HTTP error status code
 
 //! Array with the string contents of the HTTP methods in order of their appearance in enum
 //! http_method.
@@ -154,12 +160,33 @@ const char *http_extract_message(const char *buf, struct http_message *message) 
  * @param message Pointer to an http_message struct containing a request.
  * @param response Pointer to an http_message struct which will be filled with the response to the
  * HTTP message represented by \p message.
- * @return int HTTP_SUCCESS if \p message contains a valid request, HTTP_ERROR otherwise.
  */
-int http_prepare_response(struct http_message *message, struct http_message *response);
+void http_prepare_response(struct http_message *message, struct http_message *response) {
+    FILE *f;
+    if ((f = fopen(message->resource, O_RDONLY)) == NULL) {
+        perror("fopen");
+        fprintf(stderr, "%s", strerror(errno));
+        size_t status_size = strlen(HTTP_STATUS_ERROR) + 1;
+        response->status   = (char *)malloc(status_size);
+        memset(response->status, '\0', status_size); // initialize memory
+        snprintf(response->status, status_size, "%s", HTTP_STATUS_ERROR);
+    } else {
+        size_t status_size = strlen(HTTP_STATUS_OK) + 1;
+        response->status   = (char *)malloc(status_size);
+        memset(response->status, '\0', status_size);
+        snprintf(response->status, status_size, "%s", HTTP_STATUS_OK);
+        fseek(f, 0L, SEEK_END);                     // seek end of f
+        size_t body_size = ftell(f);                // get position in bytes
+        rewind(f);                                  // rewind f to beginning
+        response->body = (char *)malloc(body_size); // allocate memory for body
+        memset(response->body, '\0', body_size);    // initialize memory
+        fread(message->body, body_size, 1, f);
+    }
+}
 
 void http_init_struct_message(struct http_message *message) {
     message->method   = HTTP_METHOD_EMPTY;
+    message->status   = NULL;
     message->resource = NULL;
     message->header   = NULL;
     message->body     = NULL;
@@ -171,6 +198,9 @@ void http_init_struct_message(struct http_message *message) {
  * @param message Pointer to an http_message struct containing pointers to allocated memory.
  */
 void http_free_struct_message(struct http_message *message) {
+    if (message->status != NULL)
+        free(message->status);
+    
     if (message->resource != NULL)
         free(message->resource);
 

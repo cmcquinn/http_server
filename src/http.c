@@ -16,10 +16,16 @@
 #define HTTP_HOST_FIELD "Host: " //!< HTTP Host field name
 #define HTTP_LINE_END   "\r\n"   //!< End of line in HTTP message
 
-//! Array with the string contents of the HTTP methods in order of their appearance in enum http_method.
+//! Array with the string contents of the HTTP methods in order of their appearance in enum
+//! http_method.
 static const char *const http_methods[] = {
-    "", "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH",
+    "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH",
 };
+
+// function prototypes
+static const char *http_get_method(const char *buf, struct http_message *message);
+static const char *http_get_resource(const char *buf, struct http_message *message);
+static const char *http_get_host(const char *buf, struct http_message *message);
 
 /**
  * @brief Check if a character buffer contains a valid HTTP request.
@@ -33,7 +39,7 @@ bool http_contains_valid_message(const char *buf) {
 
     // find HTTP method
     struct http_message msg;
-    if (http_get_method(buf, &msg) == NULL)
+    if ((ptr = http_get_method(buf, &msg)) == NULL)
         return false;
 
     // find HTTP/1.1
@@ -66,11 +72,14 @@ static const char *http_get_method(const char *buf, struct http_message *message
     message->method = HTTP_METHOD_EMPTY;
 
     for (int i = 0; i < HTTP_METHOD_COUNT; i++) {
-        if ((pch = strstr(buf, http_methods[i])) != NULL)
+        if ((pch = strstr(buf, http_methods[i])) != NULL) {
             message->method = i;
+            break;
+        }
     }
 
-    return message->method != HTTP_METHOD_EMPTY ? strstr(pch, " ") : NULL; // find space after method
+    return message->method != HTTP_METHOD_EMPTY ? strstr(pch, " ")
+                                                : NULL; // find space after method
 }
 
 /**
@@ -90,9 +99,9 @@ static const char *http_get_resource(const char *buf, struct http_message *messa
         ;
 
     // set resource field of struct http_message
-    size_t len        = end - start + 1;
-    message->resource = (char *)malloc(len);
-    strncat(message->resource, start, len); // copy resource field and append null terminator
+    size_t len        = end - start;
+    message->resource = (char *)malloc(len + 1); // len + 1 bytes to fit null terminator
+    strncat(message->resource, start, len);      // copy resource field and append null terminator
 
     return end;
 }
@@ -113,9 +122,9 @@ static const char *http_get_host(const char *buf, struct http_message *message) 
     const char *end = strstr(start, HTTP_LINE_END);   // find end of line
 
     // set header field of struct http_message
-    size_t len      = end - start + 1;
-    message->header = (char *)malloc(len);
-    strncat(message->header, start, len); // copy host field and append null terminator
+    size_t len      = end - start;
+    message->header = (char *)malloc(len + 1); // len + 1 bytes to fit null terminator
+    strncat(message->header, start, len);      // copy host field and append null terminator
 
     // return pointer to next char after end of Host field
     return end + strlen(HTTP_LINE_END);
@@ -145,3 +154,19 @@ const char *http_extract_message(const char *buf, struct http_message *message) 
  * @return int HTTP_SUCCESS if \p message contains a valid request, HTTP_ERROR otherwise.
  */
 int http_prepare_response(struct http_message *message, struct http_message *response);
+
+/**
+ * @brief Free memory allocated for the fields of a struct http_message
+ *
+ * @param message Pointer to an http_message struct containing pointers to allocated memory.
+ */
+void http_free_struct_message(struct http_message *message) {
+    if (message->resource != NULL)
+        free(message->resource);
+
+    if (message->header != NULL)
+        free(message->header);
+
+    if (message->body != NULL)
+        free(message->body);
+}

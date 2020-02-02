@@ -19,7 +19,6 @@
 
 //! Enum representing the different possible HTTP methods.
 typedef enum http_method {
-    HTTP_METHOD_EMPTY, //!< No method found
     HTTP_GET,          //!< HTTP GET method
     HTTP_HEAD,         //!< HTTP HEAD method
     HTTP_POST,         //!< HTTP POST method
@@ -30,6 +29,7 @@ typedef enum http_method {
     HTTP_TRACE,        //!< HTTP TRACE method
     HTTP_PATCH,        //!< HTTP PATCH method
     HTTP_METHOD_COUNT, //!< Number of HTTP methods
+    HTTP_METHOD_EMPTY, //!< No method found
 } http_method_t;
 
 //! Struct represending an HTTP message.
@@ -67,5 +67,12 @@ const char *http_extract_message(const char *buf, struct http_message *message);
  * @return int HTTP_SUCCESS if \p message contains a valid request, HTTP_ERROR otherwise.
  */
 int http_prepare_response(struct http_message *message, struct http_message *response);
+
+/**
+ * @brief Free memory allocated for the fields of a struct http_message
+ * 
+ * @param message Pointer to an http_message struct containing pointers to allocated memory.
+ */
+void http_free_struct_message(struct http_message *message);
 
 #endif // HTTP_H

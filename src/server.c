@@ -82,9 +82,10 @@ void *connection_worker(void *fd) {
     int _fd                    = *(int *)fd;
 
     do {
-        size_t len = (recieve_count + 1) * recieve_len;
-        buf        = realloc(buf, len);           // allocate memory for another iteration
+        size_t len = (recieve_count + 1) * recieve_len + 1; // get an extra byte for null terminator
+        buf        = realloc(buf, len);                     // allocate memory for another iteration
         slot = buf + recieve_count * recieve_len; // get pointer to start of newly allocated memory
+        *(slot + recieve_len) = '\0';             // null-terminate buffer
         if (recv(_fd, slot, recieve_len, 0) == -1) {
             perror("recv");
             break;
@@ -95,7 +96,7 @@ void *connection_worker(void *fd) {
     struct http_message msg;
     http_init_struct_message(&msg);
     http_extract_message(buf, &msg);
-    
+
     printf("Got message %s\n", buf);
     close(_fd);
     free(buf);

@@ -39,6 +39,7 @@ bool http_contains_valid_message(const char *buf) {
 
     // find HTTP method
     struct http_message msg;
+    http_init_struct_message(&msg);
     if ((ptr = http_get_method(buf, &msg)) == NULL)
         return false;
 
@@ -101,6 +102,7 @@ static const char *http_get_resource(const char *buf, struct http_message *messa
     // set resource field of struct http_message
     size_t len        = end - start;
     message->resource = (char *)malloc(len + 1); // len + 1 bytes to fit null terminator
+    memset(message->resource, '\0', len + 1);    // initialize allocated memory
     strncat(message->resource, start, len);      // copy resource field and append null terminator
 
     return end;
@@ -124,6 +126,7 @@ static const char *http_get_host(const char *buf, struct http_message *message) 
     // set header field of struct http_message
     size_t len      = end - start;
     message->header = (char *)malloc(len + 1); // len + 1 bytes to fit null terminator
+    memset(message->header, '\0', len + 1);    // initialize allocated memory
     strncat(message->header, start, len);      // copy host field and append null terminator
 
     // return pointer to next char after end of Host field
@@ -156,10 +159,10 @@ const char *http_extract_message(const char *buf, struct http_message *message) 
 int http_prepare_response(struct http_message *message, struct http_message *response);
 
 void http_init_struct_message(struct http_message *message) {
-    message->method = HTTP_METHOD_EMPTY;
+    message->method   = HTTP_METHOD_EMPTY;
     message->resource = NULL;
-    message->header = NULL;
-    message->body = NULL;
+    message->header   = NULL;
+    message->body     = NULL;
 }
 
 /**

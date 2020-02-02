@@ -76,12 +76,29 @@ void server_init(char *port) {
  * @param fd Socket file descriptor.
  */
 void *connection_worker(void *fd) {
-    char *buf = (char *)malloc(recieve_len * sizeof(char));
-    int _fd   = *(int *)fd;
-    recv(_fd, buf, recieve_len, 0);
+    char *buf = NULL;
+    char *slot;
+    unsigned int recieve_count = 0;
+    int _fd                    = *(int *)fd;
+
+    do {
+        size_t len = (recieve_count + 1) * recieve_len;
+        buf        = realloc(buf, len);           // allocate memory for another iteration
+        slot = buf + recieve_count * recieve_len; // get pointer to start of newly allocated memory
+        if (recv(_fd, slot, recieve_len, 0) == -1) {
+            perror("recv");
+            break;
+        }
+        recieve_count++;
+    } while (!http_contains_valid_message(buf));
+
+    struct http_message msg;
+    http_extract_message(buf, &msg);
+    
     printf("Got message %s\n", buf);
     close(_fd);
     free(buf);
+    http_free_struct_message(&msg);
 
     // Sleep for a bit to simulate doing real work
     printf("Sleeping");

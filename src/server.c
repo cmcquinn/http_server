@@ -106,6 +106,7 @@ void *connection_worker(void *fd) {
     close(_fd);
     free(buf);
     http_free_struct_message(&msg);
+    http_free_struct_message(&rsp);
 
     // Sleep for a bit to simulate doing real work
     printf("Sleeping");

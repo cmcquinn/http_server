@@ -13,14 +13,18 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <malloc.h>
+#include <math.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
-#define HTTP_HOST_FIELD   "Host: "                      //!< HTTP Host field name
-#define HTTP_LINE_END     "\r\n"                        //!< End of line in HTTP message
-#define HTTP_STATUS_OK    "HTTP/1.1 200 OK"             //!< HTTP OK status code
-#define HTTP_STATUS_ERROR "HTTP/1.1 404 File Not Found" //!< HTTP error status code
+#define HTTP_HOST_FIELD     "Host: "                      //!< HTTP Host field name
+#define HTTP_LINE_END       "\r\n"                        //!< End of line in HTTP message
+#define HTTP_STATUS_OK      "HTTP/1.1 200 OK"             //!< HTTP OK status code
+#define HTTP_STATUS_ERROR   "HTTP/1.1 404 File Not Found" //!< HTTP error status code
+#define HTTP_CONTENT_LENGTH "Content-Length: "            //!< HTTP content length header field
+#define NULL_TERM_LEN       1                             //!< Length of null terminator
 
 //! Array with the string contents of the HTTP methods in order of their appearance in enum
 //! http_method.
@@ -32,6 +36,10 @@ static const char *const http_methods[] = {
 static const char *http_get_method(const char *buf, struct http_message *message);
 static const char *http_get_resource(const char *buf, struct http_message *message);
 static const char *http_get_host(const char *buf, struct http_message *message);
+
+static inline size_t count_digits(int i) {
+    return (size_t)floor(log10(i) + 1);
+}
 
 /**
  * @brief Check if a character buffer contains a valid HTTP request.
@@ -107,9 +115,9 @@ static const char *http_get_resource(const char *buf, struct http_message *messa
 
     // set resource field of struct http_message
     size_t len        = end - start;
-    message->resource = (char *)malloc(len + 1); // len + 1 bytes to fit null terminator
-    memset(message->resource, '\0', len + 1);    // initialize allocated memory
-    strncat(message->resource, start, len);      // copy resource field and append null terminator
+    message->resource = (char *)malloc(len + NULL_TERM_LEN);
+    memset(message->resource, '\0', len + NULL_TERM_LEN); // initialize allocated memory
+    strncat(message->resource, start, len); // copy resource field and append null terminator
 
     return end;
 }
@@ -131,9 +139,9 @@ static const char *http_get_host(const char *buf, struct http_message *message) 
 
     // set header field of struct http_message
     size_t len      = end - start;
-    message->header = (char *)malloc(len + 1); // len + 1 bytes to fit null terminator
-    memset(message->header, '\0', len + 1);    // initialize allocated memory
-    strncat(message->header, start, len);      // copy host field and append null terminator
+    message->header = (char *)malloc(len + NULL_TERM_LEN);
+    memset(message->header, '\0', len + NULL_TERM_LEN); // initialize allocated memory
+    strncat(message->header, start, len); // copy host field and append null terminator
 
     // return pointer to next char after end of Host field
     return end + strlen(HTTP_LINE_END);
@@ -162,25 +170,40 @@ const char *http_extract_message(const char *buf, struct http_message *message) 
  * HTTP message represented by \p message.
  */
 void http_prepare_response(struct http_message *message, struct http_message *response) {
-    FILE *f;
-    if ((f = fopen(message->resource, O_RDONLY)) == NULL) {
-        perror("fopen");
-        fprintf(stderr, "%s", strerror(errno));
-        size_t status_size = strlen(HTTP_STATUS_ERROR) + 1;
+    int f;
+    char *dir  = get_current_dir_name();
+    size_t len = strlen(dir) + strlen(message->resource) + NULL_TERM_LEN;
+    char path[len];
+    sprintf(path, "%s%s", dir, message->resource);
+    if ((f = open(path, O_RDONLY)) < 0) {
+        perror("open");
+
+        // insert response code
+        size_t status_size = strlen(HTTP_STATUS_ERROR) + NULL_TERM_LEN;
         response->status   = (char *)malloc(status_size);
         memset(response->status, '\0', status_size); // initialize memory
         snprintf(response->status, status_size, "%s", HTTP_STATUS_ERROR);
     } else {
-        size_t status_size = strlen(HTTP_STATUS_OK) + 1;
+        // insert response code
+        size_t status_size = strlen(HTTP_STATUS_OK) + NULL_TERM_LEN;
         response->status   = (char *)malloc(status_size);
         memset(response->status, '\0', status_size);
         snprintf(response->status, status_size, "%s", HTTP_STATUS_OK);
-        fseek(f, 0L, SEEK_END);                     // seek end of f
-        size_t body_size = ftell(f);                // get position in bytes
-        rewind(f);                                  // rewind f to beginning
+
+        // copy file to body of http message
+        size_t body_size = lseek(f, 0L, SEEK_END);  // seek end of file to get size in bytes
+        lseek(f, 0L, SEEK_SET);                     // seek beginning of file
         response->body = (char *)malloc(body_size); // allocate memory for body
         memset(response->body, '\0', body_size);    // initialize memory
-        fread(message->body, body_size, 1, f);
+        if (read(f, response->body, body_size) < 0) // copy data
+            perror("read");
+
+        // insert Content-Length header field
+        size_t header_size = strlen(HTTP_CONTENT_LENGTH) + count_digits(body_size) +
+                             strlen(HTTP_LINE_END) + NULL_TERM_LEN;
+        response->header = (char *)malloc(header_size);
+        snprintf(response->header, header_size, "%s%lu%s", HTTP_CONTENT_LENGTH, body_size,
+                 HTTP_LINE_END);
     }
 }
 
@@ -200,7 +223,7 @@ void http_init_struct_message(struct http_message *message) {
 void http_free_struct_message(struct http_message *message) {
     if (message->status != NULL)
         free(message->status);
-    
+
     if (message->resource != NULL)
         free(message->resource);
 

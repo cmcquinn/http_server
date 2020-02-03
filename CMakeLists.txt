@@ -16,7 +16,7 @@ include_directories(${MODULE_INCLUDE_DIR})
 
 add_executable(server ${CMAKE_SOURCE_DIR}/main.c ${MODULE_SRCS})
 
-target_link_libraries(server pthread)
+target_link_libraries(server pthread m)
 
 # generate documentation
 find_package(Doxygen)

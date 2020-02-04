@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
 
             case 's':
                 size = (int)atoi(optarg);
+                server_set_recv_len(size);
                 break;
 
             case 'v':
@@ -54,7 +55,6 @@ int main(int argc, char *argv[]) {
     }
 
     server_init(port);
-    server_set_recv_len(size);
     server_spin();
     server_exit();
     return 0;

@@ -257,7 +257,7 @@ char *http_message_to_string(struct http_message *message) {
  */
 char *http_format_response(struct http_message *response) {
     // handle 404 error case
-    if (strcmp(response->status, HTTP_STATUS_ERROR)) {
+    if (strcmp(response->status, HTTP_STATUS_ERROR) == 0) {
         size_t message_size = strlen(response->status) + strlen(HTTP_LINE_END);
         char *raw_message   = (char *)malloc(message_size);
         snprintf(raw_message, message_size, "%s" HTTP_LINE_END,

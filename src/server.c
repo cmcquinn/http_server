@@ -105,8 +105,9 @@ void *connection_worker(void *fd) {
     int _fd                    = *(int *)fd;
 
     do {
-        size_t len = ++recieve_count * recieve_len + NULL_TERM_LEN;
-        buf        = realloc(buf, len);           // allocate memory for another iteration
+        size_t len = (recieve_count + 1) * recieve_len + NULL_TERM_LEN;
+        if ((buf = realloc(buf, len)) == NULL) // allocate memory for another iteration
+            perror("realloc");
         slot = buf + recieve_count * recieve_len; // get pointer to start of newly allocated memory
         *(slot + recieve_len) = '\0';             // null-terminate buffer
         if (recv(_fd, slot, recieve_len, 0) == -1) {

@@ -19,12 +19,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define HTTP_HOST_FIELD     "Host: "                      //!< HTTP Host field name
-#define HTTP_LINE_END       "\r\n"                        //!< End of line in HTTP message
-#define HTTP_STATUS_OK      "HTTP/1.1 200 OK"             //!< HTTP OK status code
-#define HTTP_STATUS_ERROR   "HTTP/1.1 404 File Not Found" //!< HTTP error status code
-#define HTTP_CONTENT_LENGTH "Content-Length: "            //!< HTTP content length header field
-#define NULL_TERM_LEN       1                             //!< Length of null terminator
+#define HTTP_HOST_FIELD       "Host: "                      //!< HTTP Host field name
+#define HTTP_LINE_END         "\r\n"                        //!< End of line in HTTP message
+#define HTTP_STATUS_OK        "HTTP/1.1 200 OK"             //!< HTTP OK status code
+#define HTTP_STATUS_ERROR     "HTTP/1.1 404 File Not Found" //!< HTTP error status code
+#define HTTP_CONTENT_LENGTH   "Content-Length: "            //!< HTTP content length header field
+#define NULL_TERM_LEN         1                             //!< Length of null terminator
+#define HTTP_STRUCT_MEM_COUNT 5                    //!< Number of members in struct http_message
+#define IF_NOT_NULL(x)        (x != NULL ? x : "") //!< Pass pointer to sprintf only if not null
 
 //! Array with the string contents of the HTTP methods in order of their appearance in enum
 //! http_method.
@@ -36,6 +38,14 @@ static const char *const http_methods[] = {
 static const char *http_get_method(const char *buf, struct http_message *message);
 static const char *http_get_resource(const char *buf, struct http_message *message);
 static const char *http_get_host(const char *buf, struct http_message *message);
+
+static inline size_t get_method_len(http_method_t method) {
+    return method != HTTP_METHOD_EMPTY ? strlen(http_methods[method]) : 0;
+}
+
+static inline const char *method_to_string(http_method_t method) {
+    return method != HTTP_METHOD_EMPTY ? http_methods[method] : "";
+}
 
 static inline size_t count_digits(int i) {
     return (size_t)floor(log10(i) + 1);
@@ -207,6 +217,68 @@ void http_prepare_response(struct http_message *message, struct http_message *re
     }
 }
 
+/**
+ * @brief Format a struct http_message into a char buf.
+ *
+ * @param message Pointer to a struct http_message.
+ * @return char* Pointer to a malloc'ed char buf containing a string representation of the
+ * struct http_message.
+ */
+char *http_message_to_string(struct http_message *message) {
+    size_t message_len = get_method_len(message->method);
+
+    // space for fields
+    if (message->header)
+        message_len += strlen(message->header);
+    if (message->resource)
+        message_len += strlen(message->resource);
+    if (message->status)
+        message_len += strlen(message->status);
+    if (message->body)
+        message_len += strlen(message->body);
+
+    message_len += HTTP_STRUCT_MEM_COUNT * strlen("\n"); // space for newlines after
+                                                         // each field and null terminator at end
+
+    char *message_str = (char *)malloc(message_len);
+    snprintf(message_str, message_len, "%s %s %s %s %s", method_to_string(message->method),
+             IF_NOT_NULL(message->status), IF_NOT_NULL(message->resource),
+             IF_NOT_NULL(message->header), IF_NOT_NULL(message->body));
+    return message_str;
+}
+
+/**
+ * @brief Format the contents of a struct http_message into a char buf to allow them to be sent over
+ * a connection.
+ *
+ * @param response Pointer to a struct http_message containing a response to an HTTP request.
+ * @return char* Pointer to a char buffer containing a string representation of \p response.
+ */
+char *http_format_response(struct http_message *response) {
+    // handle 404 error case
+    if (strcmp(response->status, HTTP_STATUS_ERROR)) {
+        size_t message_size = strlen(response->status) + strlen(HTTP_LINE_END);
+        char *raw_message   = (char *)malloc(message_size);
+        snprintf(raw_message, message_size, "%s" HTTP_LINE_END,
+                 response->status); // format message into char buf
+        return raw_message;
+    } else { // handle regular response
+        size_t message_size = strlen(response->status) + strlen(HTTP_LINE_END) +
+                              strlen(response->header) + strlen(HTTP_LINE_END) +
+                              strlen(response->body) + NULL_TERM_LEN;
+        char *raw_message = (char *)malloc(message_size);
+        snprintf(raw_message, message_size, "%s" HTTP_LINE_END "%s" HTTP_LINE_END "%s",
+                 response->status, response->header,
+                 response->body); // format message into char buf
+        return raw_message;
+    }
+}
+
+/**
+ * @brief Initialize a struct http_message to default values;
+ *
+ * @param message Pointer to a struct http_message.
+ */
 void http_init_struct_message(struct http_message *message) {
     message->method   = HTTP_METHOD_EMPTY;
     message->status   = NULL;

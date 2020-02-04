@@ -13,6 +13,7 @@
 #define HTTP_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #define HTTP_ERROR   -1 //!< Return code indicating error.
 #define HTTP_SUCCESS 0  //!< Return code indicating success.
@@ -67,6 +68,24 @@ const char *http_extract_message(const char *buf, struct http_message *message);
  * HTTP message represented by \p message.
  */
 void http_prepare_response(struct http_message *message, struct http_message *response);
+
+/**
+ * @brief Format a struct http_message into a char buf.
+ *
+ * @param message Pointer to a struct http_message.
+ * @return char* Pointer to a malloc'ed char buf containing a string representation of the
+ * struct http_message.
+ */
+char *http_message_to_string(struct http_message *message);
+
+/**
+ * @brief Format the contents of a struct http_message into a char buf to allow them to be sent over
+ * a connection.
+ *
+ * @param response Pointer to a struct http_message containing a response to an HTTP request.
+ * @return char* Pointer to a char buffer containing a string representation of \p response.
+ */
+char *http_format_response(struct http_message *response);
 
 /**
  * @brief Initialize a struct http_message to default values;

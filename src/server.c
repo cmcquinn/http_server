@@ -97,14 +97,24 @@ void *connection_worker(void *fd) {
     http_init_struct_message(&msg);
     http_extract_message(buf, &msg);
 
-    printf("Got message %s\n", buf);
+    char *msg_str = http_message_to_string(&msg);
+    printf("\nGot message %s\n", msg_str);
+    free(msg_str);
 
+    // create response
     struct http_message rsp;
     http_init_struct_message(&rsp);
     http_prepare_response(&msg, &rsp);
+    char *rsp_msg       = http_format_response(&rsp);
+    size_t response_len = strlen(rsp_msg);
+
+    // send response
+    if (send(_fd, rsp_msg, response_len, 0) == -1)
+        perror("send");
 
     close(_fd);
     free(buf);
+    free(rsp_msg);
     http_free_struct_message(&msg);
     http_free_struct_message(&rsp);
 

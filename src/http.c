@@ -202,11 +202,11 @@ void http_prepare_response(struct http_message *message, struct http_message *re
         snprintf(response->status, status_size, "%s", HTTP_STATUS_OK);
 
         // copy file to body of http message
-        size_t body_size = lseek(f, 0L, SEEK_END);  // seek end of file to get size in bytes
-        lseek(f, 0L, SEEK_SET);                     // seek beginning of file
-        response->body = (char *)malloc(body_size); // allocate memory for body
-        memset(response->body, '\0', body_size);    // initialize memory
-        if (read(f, response->body, body_size) < 0) // copy data
+        size_t body_size = lseek(f, 0L, SEEK_END); // seek end of file to get size in bytes
+        lseek(f, 0L, SEEK_SET);                    // seek beginning of file
+        response->body = (char *)malloc(body_size + NULL_TERM_LEN); // allocate memory for body
+        memset(response->body, '\0', body_size + NULL_TERM_LEN);    // initialize memory
+        if (read(f, response->body, body_size) < 0)                 // copy data
             perror("read");
 
         // insert Content-Length header field

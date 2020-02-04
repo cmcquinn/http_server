@@ -35,9 +35,9 @@ static const char *const http_methods[] = {
 };
 
 // function prototypes
-static const char *http_get_method(const char *buf, struct http_message *message);
-static const char *http_get_resource(const char *buf, struct http_message *message);
-static const char *http_get_host(const char *buf, struct http_message *message);
+static char *http_get_method(const char *buf, struct http_message *message);
+static char *http_get_resource(const char *buf, struct http_message *message);
+static char *http_get_host(const char *buf, struct http_message *message);
 
 static inline size_t get_method_len(http_method_t method) {
     return method != HTTP_METHOD_EMPTY ? strlen(http_methods[method]) : 0;
@@ -89,10 +89,10 @@ bool http_contains_valid_message(const char *buf) {
  *
  * @param buf Char buf containing a valid HTTP message.
  * @param message Pointer to a struct http_message. The \p method field of \p message will be set.
- * @return const char* Pointer to next character after the end of the HTTP method in \p buf if an
+ * @return char* Pointer to next character after the end of the HTTP method in \p buf if an
  * HTTP method is found, NULL otherwise.
  */
-static const char *http_get_method(const char *buf, struct http_message *message) {
+static char *http_get_method(const char *buf, struct http_message *message) {
     const char *pch = NULL;
 
     if (message->method == HTTP_METHOD_EMPTY) {
@@ -114,13 +114,13 @@ static const char *http_get_method(const char *buf, struct http_message *message
  *
  * @param buf Char buf containing a valid HTTP message.
  * @param message Pointer to a struct http_message. The \p resource field of \p message will be set.
- * @return const char* Pointer to next character after the resource path in \p buf .
+ * @return char* Pointer to next character after the resource path in \p buf .
  */
-static const char *http_get_resource(const char *buf, struct http_message *message) {
-    const char *start = strchr(buf, '/'); // find '/' at beginning of path
+static char *http_get_resource(const char *buf, struct http_message *message) {
+    char *start = strchr(buf, '/'); // find '/' at beginning of path
 
     // find end of request path
-    const char *end = start;
+    char *end = start;
     while (*++end != ' ')
         ;
 
@@ -140,13 +140,13 @@ static const char *http_get_resource(const char *buf, struct http_message *messa
  * @param buf Char buf containing a valid HTTP message.
  * @param message Pointer to a struct http_message. The \p headers field of \p message will be
  * modified.
- * @return const char* Pointer to next character after the hostname in \p buf .
+ * @return char* Pointer to next character after the hostname in \p buf .
  */
-static const char *http_get_host(const char *buf, struct http_message *message) {
-    const char *start = strstr(buf, HTTP_HOST_FIELD); // find start of Host field
-    start             = strchr(start, ' ');           // find space before hostname
-    start++;                                          // get pointer to first char of hostname
-    const char *end = strstr(start, HTTP_LINE_END);   // find end of line
+static char *http_get_host(const char *buf, struct http_message *message) {
+    char *start = strstr(buf, HTTP_HOST_FIELD); // find start of Host field
+    start       = strchr(start, ' ');           // find space before hostname
+    start++;                                    // get pointer to first char of hostname
+    char *end = strstr(start, HTTP_LINE_END);   // find end of line
 
     // set header field of struct http_message
     size_t len      = end - start;
@@ -163,10 +163,10 @@ static const char *http_get_host(const char *buf, struct http_message *message) 
  *
  * @param buf Char buf containing a valid HTTP message.
  * @param message Pointer to a struct http_message to be filled with the contents of the message.
- * @return const char* Pointer to the next character in \p buf after the HTTP message.
+ * @return char* Pointer to the next character in \p buf after the HTTP message.
  */
-const char *http_extract_message(const char *buf, struct http_message *message) {
-    const char *pch;
+char *http_extract_message(const char *buf, struct http_message *message) {
+    char *pch;
     pch = http_get_method(buf, message);
     pch = http_get_resource(pch, message);
     pch = http_get_host(pch, message);

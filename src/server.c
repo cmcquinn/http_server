@@ -99,51 +99,65 @@ void server_init(char *port) {
  * @param fd Socket file descriptor.
  */
 void *connection_worker(void *fd) {
-    char *buf = NULL;
-    char *slot;
+    char *buf                  = NULL; // buffer to recieve into
+    char *head                 = NULL; // pointer to end of processed part of buffer
+    char *slot                 = NULL; // pointer to the next location to recieve into
     unsigned int recieve_count = 0;
     int _fd                    = *(int *)fd;
+    bool connection_closed     = false;
 
-    do {
-        size_t len = (recieve_count + 1) * recieve_len + NULL_TERM_LEN;
-        if ((buf = realloc(buf, len)) == NULL) // allocate memory for another iteration
-            perror("realloc");
-        slot = buf + recieve_count * recieve_len; // get pointer to start of newly allocated memory
-        *(slot + recieve_len) = '\0';             // null-terminate buffer
-        if (recv(_fd, slot, recieve_len, 0) == -1) {
-            perror("recv");
-            break;
-        }
-        debug_print("%s", slot);
-        recieve_count++;
+    buf  = (char *)malloc(recieve_len + NULL_TERM_LEN); // initial memory allocation
+    head = buf;
 
-    } while (!http_contains_valid_message(buf));
+    while (!connection_closed) {
+        do {
+            size_t len = (recieve_count + 1) * recieve_len + NULL_TERM_LEN;
+            if ((buf = realloc(buf, len)) == NULL) // allocate memory for another iteration
+                perror("realloc");
 
-    struct http_message msg;
-    http_init_struct_message(&msg);
-    http_extract_message(buf, &msg);
+            slot = head +
+                   recieve_count * recieve_len; // get pointer to start of newly allocated memory
+            *(slot + recieve_len) = '\0';       // null-terminate buffer
 
-    char *msg_str = http_message_to_string(&msg);
-    thread_debug("Got message %s after %u transactions\n", msg_str, recieve_count);
-    free(msg_str);
+            size_t bytes = 0;
+            if ((bytes = recv(_fd, slot, recieve_len, 0)) <= 0) {
+                if (bytes == 0) {
+                    connection_closed = true;
+                } else {
+                    perror("recv");
+                }
+                break;
+            }
+            debug_print("%s", slot);
+            recieve_count++;
+        } while (!http_contains_valid_message(head));
 
-    // create response
-    struct http_message rsp;
-    http_init_struct_message(&rsp);
-    http_prepare_response(&msg, &rsp);
-    char *rsp_msg       = http_format_response(&rsp);
-    size_t response_len = strlen(rsp_msg);
-    thread_debug("Sending response: %s\n", rsp_msg);
+        struct http_message msg;
+        http_init_struct_message(&msg);
+        head = http_extract_message(buf, &msg);
 
-    // send response
-    if (send(_fd, rsp_msg, response_len, 0) == -1)
-        perror("send");
+        char *msg_str = http_message_to_string(&msg);
+        thread_debug("Got message %s after %u transactions\n", msg_str, recieve_count);
+        free(msg_str);
 
-    close(_fd);
+        // create response
+        struct http_message rsp;
+        http_init_struct_message(&rsp);
+        http_prepare_response(&msg, &rsp);
+        char *rsp_msg       = http_format_response(&rsp);
+        size_t response_len = strlen(rsp_msg);
+        thread_debug("Sending response: %s\n", rsp_msg);
+
+        // send response
+        if (send(_fd, rsp_msg, response_len, 0) == -1)
+            perror("send");
+        free(rsp_msg);
+        http_free_struct_message(&msg);
+        http_free_struct_message(&rsp);
+    }
+
     free(buf);
-    free(rsp_msg);
-    http_free_struct_message(&msg);
-    http_free_struct_message(&rsp);
+    close(_fd);
 
     // Sleep for a bit to simulate doing real work
     thread_debug("Sleeping\n");

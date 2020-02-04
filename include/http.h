@@ -56,9 +56,9 @@ bool http_contains_valid_message(const char *buf);
  *
  * @param buf Char buf containing a valid HTTP message.
  * @param message Pointer to a struct http_message to be filled with the contents of the message.
- * @return const char* Pointer to the next character in \p buf after the HTTP message.
+ * @return char* Pointer to the next character in \p buf after the HTTP message.
  */
-const char *http_extract_message(const char *buf, struct http_message *message);
+char *http_extract_message(const char *buf, struct http_message *message);
 
 /**
  * @brief Format a response to an HTTP message containing a request.

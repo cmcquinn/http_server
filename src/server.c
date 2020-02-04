@@ -28,6 +28,7 @@
 #define DEFAULT_RECV_LEN  1024 //!< Default length for recieve operations
 #define BACKLOG           5    //!< Number of connections allowed on the incoming queue
 #define SLEEPTIME_SECONDS 5 //!< Time in seconds that each thread should sleep for before returning
+#define NULL_TERM_LEN     1 //!< Length of null terminator
 
 #define thread_debug(__format, ...)                                                                \
     if (verbose) {                                                                                 \
@@ -104,15 +105,15 @@ void *connection_worker(void *fd) {
     int _fd                    = *(int *)fd;
 
     do {
-        size_t len = (recieve_count + 1) * recieve_len + 1; // get an extra byte for null terminator
-        buf        = realloc(buf, len);                     // allocate memory for another iteration
+        size_t len = ++recieve_count * recieve_len + NULL_TERM_LEN;
+        buf        = realloc(buf, len);           // allocate memory for another iteration
         slot = buf + recieve_count * recieve_len; // get pointer to start of newly allocated memory
         *(slot + recieve_len) = '\0';             // null-terminate buffer
-        thread_debug("recv: %d\n", recieve_count);
         if (recv(_fd, slot, recieve_len, 0) == -1) {
             perror("recv");
             break;
         }
+        debug_print("%s", slot);
         recieve_count++;
 
     } while (!http_contains_valid_message(buf));

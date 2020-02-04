@@ -9,6 +9,7 @@
  *
  */
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <malloc.h>
 #include <netdb.h>
@@ -29,13 +30,27 @@
 #define SLEEPTIME_SECONDS 5 //!< Time in seconds that each thread should sleep for before returning
 
 #define thread_debug(__format, ...)                                                                \
-    if (verbose)                                                                                   \
-        printf("%ld: " __format, syscall(__NR_gettid), ##__VA_ARGS__);
+    if (verbose) {                                                                                 \
+        printf("%ld: " __format, syscall(__NR_gettid), ##__VA_ARGS__);                             \
+    }
+#define debug_print(__format, ...)                                                                 \
+    if (verbose) {                                                                                 \
+        printf(__format, ##__VA_ARGS__);                                                           \
+    }
 
 static size_t recieve_len = DEFAULT_RECV_LEN;
 static struct addrinfo *servinfo;
 static int sock;
 static bool verbose = false;
+
+// get sockaddr, IPv4 or IPv6:
+static void *get_in_addr(struct sockaddr *sa) {
+    if (sa->sa_family == AF_INET) {
+        return &(((struct sockaddr_in *)sa)->sin_addr);
+    }
+
+    return &(((struct sockaddr_in6 *)sa)->sin6_addr);
+}
 
 /**
  * @brief Initialize the HTTP server.
@@ -93,11 +108,11 @@ void *connection_worker(void *fd) {
         buf        = realloc(buf, len);                     // allocate memory for another iteration
         slot = buf + recieve_count * recieve_len; // get pointer to start of newly allocated memory
         *(slot + recieve_len) = '\0';             // null-terminate buffer
+        thread_debug("recv: %d\n", recieve_count);
         if (recv(_fd, slot, recieve_len, 0) == -1) {
             perror("recv");
             break;
         }
-        thread_debug("recv: %d\n", recieve_count);
         recieve_count++;
 
     } while (!http_contains_valid_message(buf));
@@ -163,6 +178,12 @@ void server_spin() {
             perror("accept");
             exit(EXIT_FAILURE);
         }
+
+        // report connection
+        char ipstr[INET_ADDRSTRLEN];
+        inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), ipstr,
+                  sizeof ipstr);
+        debug_print("server: got connection from %s\n", ipstr);
 
         // dispatch a thread to handle the connection
         pthread_create(&threadid, &attr, connection_worker, (void *)&conn_fd);

@@ -109,12 +109,14 @@ void *connection_worker(void *fd) {
     buf  = (char *)malloc(recieve_len + NULL_TERM_LEN); // initial memory allocation
     head = buf;
 
-    while (!connection_closed) {
+    do {
         do {
-            size_t len = (recieve_count + 1) * recieve_len + NULL_TERM_LEN;
-            if ((buf = realloc(buf, len)) == NULL) // allocate memory for another iteration
+            size_t len         = (recieve_count + 1) * recieve_len + NULL_TERM_LEN;
+            size_t head_offset = head - buf;       // save offset of head ptr from start of buffer
+            if ((buf = realloc(buf, 2*len)) == NULL) // allocate memory for another iteration
                 perror("realloc");
 
+            head = buf + head_offset;
             slot = head +
                    recieve_count * recieve_len; // get pointer to start of newly allocated memory
             *(slot + recieve_len) = '\0';       // null-terminate buffer
@@ -132,37 +134,40 @@ void *connection_worker(void *fd) {
             recieve_count++;
         } while (!http_contains_valid_message(head));
 
-        struct http_message msg;
-        http_init_struct_message(&msg);
-        head = http_extract_message(buf, &msg);
+        if (!connection_closed) {
+            struct http_message msg;
+            http_init_struct_message(&msg);
+            head = http_extract_message(head, &msg);
 
-        char *msg_str = http_message_to_string(&msg);
-        thread_debug("Got message %s after %u transactions\n", msg_str, recieve_count);
-        free(msg_str);
+            char *msg_str = http_message_to_string(&msg);
+            thread_debug("Got message %s after %u transactions\n", msg_str, recieve_count);
+            free(msg_str);
 
-        // create response
-        struct http_message rsp;
-        http_init_struct_message(&rsp);
-        http_prepare_response(&msg, &rsp);
-        char *rsp_msg       = http_format_response(&rsp);
-        size_t response_len = strlen(rsp_msg);
-        thread_debug("Sending response: %s\n", rsp_msg);
+            // create response
+            struct http_message rsp;
+            http_init_struct_message(&rsp);
+            http_prepare_response(&msg, &rsp);
+            char *rsp_msg       = http_format_response(&rsp);
+            size_t response_len = strlen(rsp_msg);
+            thread_debug("Sending response: %s\n", rsp_msg);
 
-        // send response
-        if (send(_fd, rsp_msg, response_len, 0) == -1)
-            perror("send");
-        free(rsp_msg);
-        http_free_struct_message(&msg);
-        http_free_struct_message(&rsp);
-    }
+            // send response
+            if (send(_fd, rsp_msg, response_len, 0) == -1)
+                perror("send");
+            free(rsp_msg);
+            http_free_struct_message(&msg);
+            http_free_struct_message(&rsp);
+        }
+
+    } while (!connection_closed);
 
     free(buf);
     close(_fd);
 
     // Sleep for a bit to simulate doing real work
-    thread_debug("Sleeping\n");
-    sleep(SLEEPTIME_SECONDS);
-    pthread_exit(NULL);
+    // thread_debug("Sleeping\n");
+    // sleep(SLEEPTIME_SECONDS);
+    return NULL;
 }
 
 /**

@@ -49,4 +49,10 @@ void server_set_recv_len(size_t len);
  */
 size_t server_get_recv_len();
 
+/**
+ * @brief Put the server into verbose mode, which prints out more information useful for debugging.
+ *
+ */
+void server_set_verbose_mode();
+
 #endif // SERVER_H

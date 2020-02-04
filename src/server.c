@@ -13,10 +13,12 @@
 #include <malloc.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -26,9 +28,14 @@
 #define BACKLOG           5    //!< Number of connections allowed on the incoming queue
 #define SLEEPTIME_SECONDS 5 //!< Time in seconds that each thread should sleep for before returning
 
+#define thread_debug(__format, ...)                                                                \
+    if (verbose)                                                                                   \
+        printf("%ld: " __format, syscall(__NR_gettid), ##__VA_ARGS__);
+
 static size_t recieve_len = DEFAULT_RECV_LEN;
 static struct addrinfo *servinfo;
 static int sock;
+static bool verbose = false;
 
 /**
  * @brief Initialize the HTTP server.
@@ -45,13 +52,13 @@ void server_init(char *port) {
     hints.ai_flags    = AI_PASSIVE;  // fill in my IP for me
 
     if ((status = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+        perror("getaddrinfo");
         exit(EXIT_FAILURE);
     }
 
     // setup the socket
     if ((sock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1) {
-        fprintf(stderr, "socket error: %s\n", strerror(errno));
+        perror("socket");
         freeaddrinfo(servinfo);
         exit(EXIT_FAILURE);
     }
@@ -65,7 +72,7 @@ void server_init(char *port) {
 
     // bind the socket to a port
     if (bind(sock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-        fprintf(stderr, "bind error: %s\n", strerror(errno));
+        perror("bind");
         exit(EXIT_FAILURE);
     }
 }
@@ -90,7 +97,9 @@ void *connection_worker(void *fd) {
             perror("recv");
             break;
         }
+        thread_debug("recv: %d\n", recieve_count);
         recieve_count++;
+
     } while (!http_contains_valid_message(buf));
 
     struct http_message msg;
@@ -98,7 +107,7 @@ void *connection_worker(void *fd) {
     http_extract_message(buf, &msg);
 
     char *msg_str = http_message_to_string(&msg);
-    printf("\nGot message %s\n", msg_str);
+    thread_debug("Got message %s after %u transactions\n", msg_str, recieve_count);
     free(msg_str);
 
     // create response
@@ -107,6 +116,7 @@ void *connection_worker(void *fd) {
     http_prepare_response(&msg, &rsp);
     char *rsp_msg       = http_format_response(&rsp);
     size_t response_len = strlen(rsp_msg);
+    thread_debug("Sending response: %s\n", rsp_msg);
 
     // send response
     if (send(_fd, rsp_msg, response_len, 0) == -1)
@@ -119,13 +129,8 @@ void *connection_worker(void *fd) {
     http_free_struct_message(&rsp);
 
     // Sleep for a bit to simulate doing real work
-    printf("Sleeping");
-    for (int i = 0; i < SLEEPTIME_SECONDS; i++) {
-        sleep(1);
-        printf(".");
-        fflush(stdout);
-    }
-    printf("\n");
+    thread_debug("Sleeping\n");
+    sleep(SLEEPTIME_SECONDS);
     pthread_exit(NULL);
 }
 
@@ -187,4 +192,12 @@ void server_set_recv_len(size_t len) {
  */
 size_t server_get_recv_len() {
     return recieve_len;
+}
+
+/**
+ * @brief Put the server into verbose mode, which prints out more information useful for debugging.
+ *
+ */
+void server_set_verbose_mode() {
+    verbose = true;
 }

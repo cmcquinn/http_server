@@ -24,6 +24,7 @@ void usage(char *argv[]) {
                "PORT") ". Default is port %s\n",
            DEFAULT_PORT);
     printf(" -s " UNDERLINE("SIZE") "\tSet recieve size in bytes\n");
+    printf(" -v \t\tPrint information useful for debugging\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -31,7 +32,7 @@ int main(int argc, char *argv[]) {
     char *port = DEFAULT_PORT;
     unsigned int size;
 
-    while ((opt = getopt(argc, argv, ":p:s:")) != -1) {
+    while ((opt = getopt(argc, argv, ":p:s:v")) != -1) {
         switch (opt) {
             case 'p':
                 port = optarg;
@@ -39,6 +40,10 @@ int main(int argc, char *argv[]) {
 
             case 's':
                 size = (int)atoi(optarg);
+                break;
+
+            case 'v':
+                server_set_verbose_mode();
                 break;
 
             default:

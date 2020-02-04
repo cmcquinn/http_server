@@ -94,12 +94,13 @@ bool http_contains_valid_message(const char *buf) {
  */
 static const char *http_get_method(const char *buf, struct http_message *message) {
     const char *pch = NULL;
-    message->method = HTTP_METHOD_EMPTY;
 
-    for (int i = 0; i < HTTP_METHOD_COUNT; i++) {
-        if ((pch = strstr(buf, http_methods[i])) != NULL) {
-            message->method = i;
-            break;
+    if (message->method == HTTP_METHOD_EMPTY) {
+        for (int i = 0; i < HTTP_METHOD_COUNT; i++) {
+            if ((pch = strstr(buf, http_methods[i])) != NULL) {
+                message->method = i;
+                break;
+            }
         }
     }
 

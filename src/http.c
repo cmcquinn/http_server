@@ -286,6 +286,27 @@ char *http_format_response(struct http_message *response) {
 }
 
 /**
+ * @brief Get the length in bytes of the response to a struct http_message.
+ *
+ * @param response Pointer to a struct http_message containing a response to an HTTP request.
+ * @return size_t Size of the formatted response.
+ */
+size_t http_get_response_len(struct http_message *response) {
+    size_t message_size = 0;
+    // handle 404 error case
+    if (strncmp(response->status, HTTP_STATUS_ERROR, strlen(HTTP_STATUS_ERROR)) == 0) {
+        message_size = strlen(response->status) + strlen(HTTP_LINE_END) + strlen(response->header) +
+                       strlen(HTTP_LINE_END) + NULL_TERM_LEN;
+
+    } else { // handle regular response
+        message_size = strlen(response->status) + strlen(HTTP_LINE_END) + strlen(response->header) +
+                       strlen(HTTP_LINE_END) + strlen(response->body) + strlen(HTTP_LINE_END) +
+                       NULL_TERM_LEN;
+    }
+    return message_size;
+}
+
+/**
  * @brief Initialize a struct http_message to default values;
  *
  * @param message Pointer to a struct http_message.

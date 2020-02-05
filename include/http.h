@@ -90,6 +90,14 @@ char *http_message_to_string(struct http_message *message);
 char *http_format_response(struct http_message *response);
 
 /**
+ * @brief Get the length in bytes of the response to a struct http_message.
+ * 
+ * @param response Pointer to a struct http_message containing a response to an HTTP request.
+ * @return size_t Size of the formatted response.
+ */
+size_t http_get_response_len(struct http_message *response);
+
+/**
  * @brief Initialize a struct http_message to default values;
  *
  * @param message Pointer to a struct http_message.

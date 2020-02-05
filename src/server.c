@@ -146,7 +146,7 @@ void *connection_worker(void *fd) {
             head = buf + head_offset;
             slot = head +
                    recieve_count * recieve_len; // get pointer to start of newly allocated memory
-            *(slot + recieve_len) = '\0';       // null-terminate buffer
+            memset(slot, '\0', recieve_len + NULL_TERM_LEN);
 
             size_t bytes = 0;
             if ((bytes = recv(_fd, slot, recieve_len, 0)) <= 0) {

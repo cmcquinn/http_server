@@ -24,8 +24,9 @@
 #define HTTP_STATUS_OK        "HTTP/1.1 200 OK"             //!< HTTP OK status code
 #define HTTP_STATUS_ERROR     "HTTP/1.1 404 File Not Found" //!< HTTP error status code
 #define HTTP_CONTENT_LENGTH   "Content-Length: "            //!< HTTP content length header field
-#define NULL_TERM_LEN         1                             //!< Length of null terminator
-#define HTTP_STRUCT_MEM_COUNT 5                    //!< Number of members in struct http_message
+#define CLOSE_CONNECTION      "Connection: close" //!< Header to tell the server to close the connection
+#define NULL_TERM_LEN         1                   //!< Length of null terminator
+#define HTTP_STRUCT_MEM_COUNT 5                   //!< Number of members in struct http_message
 #define IF_NOT_NULL(x)        (x != NULL ? x : "") //!< Pass pointer to sprintf only if not null
 
 //! Array with the string contents of the HTTP methods in order of their appearance in enum
@@ -194,6 +195,11 @@ void http_prepare_response(struct http_message *message, struct http_message *re
         response->status   = (char *)malloc(status_size);
         memset(response->status, '\0', status_size); // initialize memory
         snprintf(response->status, status_size, "%s", HTTP_STATUS_ERROR);
+
+        // add header
+        size_t header_size = strlen(CLOSE_CONNECTION) + strlen(HTTP_LINE_END) + NULL_TERM_LEN;
+        response->header   = (char *)malloc(header_size);
+        snprintf(response->header, header_size, "%s" HTTP_LINE_END, CLOSE_CONNECTION);
     } else {
         // insert response code
         size_t status_size = strlen(HTTP_STATUS_OK) + NULL_TERM_LEN;
@@ -259,18 +265,22 @@ char *http_message_to_string(struct http_message *message) {
  */
 char *http_format_response(struct http_message *response) {
     // handle 404 error case
-    if (strcmp(response->status, HTTP_STATUS_ERROR) == 0) {
-        size_t message_size = strlen(response->status) + strlen(HTTP_LINE_END);
-        char *raw_message   = (char *)malloc(message_size);
-        snprintf(raw_message, message_size, "%s" HTTP_LINE_END,
-                 response->status); // format message into char buf
+    if (strncmp(response->status, HTTP_STATUS_ERROR, strlen(HTTP_STATUS_ERROR)) == 0) {
+        size_t message_size = strlen(response->status) + strlen(HTTP_LINE_END) +
+                              strlen(response->header) + strlen(HTTP_LINE_END) + NULL_TERM_LEN;
+        char *raw_message = (char *)malloc(message_size);
+        snprintf(raw_message, message_size, "%s" HTTP_LINE_END "%s" HTTP_LINE_END, response->status,
+                 response->header); // format message into char buf
         return raw_message;
     } else { // handle regular response
         size_t message_size = strlen(response->status) + strlen(HTTP_LINE_END) +
-                              strlen(response->header) + NULL_TERM_LEN;
+                              strlen(response->header) + strlen(HTTP_LINE_END) +
+                              strlen(response->body) + strlen(HTTP_LINE_END) + NULL_TERM_LEN;
         char *raw_message = (char *)malloc(message_size);
-        snprintf(raw_message, message_size, "%s" HTTP_LINE_END "%s", response->status,
-                 response->header); // format message into char buf
+        snprintf(raw_message, message_size,
+                 "%s" HTTP_LINE_END "%s" HTTP_LINE_END "%s" HTTP_LINE_END, response->status,
+                 response->header,
+                 response->body); // format message into char buf
         return raw_message;
     }
 }

@@ -40,6 +40,7 @@ struct http_message {
     char *resource;       /**< Path to the requested resource. */
     char *header;         /**< HTTP header fields. */
     char *body;           /**< Message body */
+    size_t body_len;      /**< Length of message body */
 };
 
 /**
@@ -55,7 +56,8 @@ bool http_contains_valid_message(const char *buf);
  * @brief Extract an HTTP message from a char buf and put it into a struct http_message.
  *
  * @param buf Char buf containing a valid HTTP message.
- * @param message Pointer to a struct http_message to be filled with the contents of the message.
+ * @param message Pointer to a struct http_message to be filled with the contents of the
+ * message.
  * @return char* Pointer to the next character in \p buf after the HTTP message.
  */
 char *http_extract_message(const char *buf, struct http_message *message);
@@ -64,8 +66,8 @@ char *http_extract_message(const char *buf, struct http_message *message);
  * @brief Format a response to an HTTP message containing a request.
  *
  * @param message Pointer to an http_message struct containing a request.
- * @param response Pointer to an http_message struct which will be filled with the response to the
- * HTTP message represented by \p message.
+ * @param response Pointer to an http_message struct which will be filled with the response to
+ * the HTTP message represented by \p message.
  */
 void http_prepare_response(struct http_message *message, struct http_message *response);
 
@@ -79,8 +81,8 @@ void http_prepare_response(struct http_message *message, struct http_message *re
 char *http_message_to_string(struct http_message *message);
 
 /**
- * @brief Format the contents of a struct http_message into a char buf to allow them to be sent over
- * a connection.
+ * @brief Format the contents of a struct http_message into a char buf to allow them to be sent
+ * over a connection.
  *
  * @param response Pointer to a struct http_message containing a response to an HTTP request.
  * @return char* Pointer to a char buffer containing a string representation of \p response.

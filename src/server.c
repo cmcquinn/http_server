@@ -54,6 +54,33 @@ static void *get_in_addr(struct sockaddr *sa) {
 }
 
 /**
+ * @brief Send data to a socket.
+ *
+ * @param s Socket to send data to.
+ * @param buf Buffer containing data to send.
+ * @param len Length of data to be sent
+ * @return int -1 on failure, 0 on success
+ */
+static int sendall(int s, char *buf, size_t *len) {
+    size_t total     = 0;    // how many bytes we've sent
+    size_t bytesleft = *len; // how many we have left to send
+    ssize_t n;
+
+    while (total < *len) {
+        n = send(s, buf + total, bytesleft, 0);
+        if (n == -1) {
+            break;
+        }
+        total += n;
+        bytesleft -= n;
+    }
+
+    *len = total; // return number actually sent here
+
+    return n == -1 ? -1 : 0; // return -1 on failure, 0 on success
+}
+
+/**
  * @brief Initialize the HTTP server.
  *
  * @param port Port to listen for connections on.
@@ -112,8 +139,8 @@ void *connection_worker(void *fd) {
     do {
         do {
             size_t len         = (recieve_count + 1) * recieve_len + NULL_TERM_LEN;
-            size_t head_offset = head - buf;       // save offset of head ptr from start of buffer
-            if ((buf = realloc(buf, 2*len)) == NULL) // allocate memory for another iteration
+            size_t head_offset = head - buf; // save offset of head ptr from start of buffer
+            if ((buf = realloc(buf, 2 * len)) == NULL) // allocate memory for another iteration
                 perror("realloc");
 
             head = buf + head_offset;
@@ -152,8 +179,9 @@ void *connection_worker(void *fd) {
             thread_debug("Sending response: %s\n", rsp_msg);
 
             // send response
-            if (send(_fd, rsp_msg, response_len, 0) == -1)
-                perror("send");
+            sendall(_fd, rsp_msg, &response_len);
+            sendall(_fd, rsp.body, &rsp.body_len);
+
             free(rsp_msg);
             http_free_struct_message(&msg);
             http_free_struct_message(&rsp);
@@ -166,7 +194,7 @@ void *connection_worker(void *fd) {
 
     // Sleep for a bit to simulate doing real work
     // thread_debug("Sleeping\n");
-    // sleep(SLEEPTIME_SECONDS);
+    sleep(SLEEPTIME_SECONDS);
     return NULL;
 }
 

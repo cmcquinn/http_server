@@ -202,8 +202,9 @@ void http_prepare_response(struct http_message *message, struct http_message *re
         snprintf(response->status, status_size, "%s", HTTP_STATUS_OK);
 
         // copy file to body of http message
-        size_t body_size = lseek(f, 0L, SEEK_END); // seek end of file to get size in bytes
-        lseek(f, 0L, SEEK_SET);                    // seek beginning of file
+        size_t body_size  = lseek(f, 0L, SEEK_END); // seek end of file to get size in bytes
+        response->body_len = body_size;
+        lseek(f, 0L, SEEK_SET);                                     // seek beginning of file
         response->body = (char *)malloc(body_size + NULL_TERM_LEN); // allocate memory for body
         memset(response->body, '\0', body_size + NULL_TERM_LEN);    // initialize memory
         if (read(f, response->body, body_size) < 0)                 // copy data
@@ -265,12 +266,10 @@ char *http_format_response(struct http_message *response) {
         return raw_message;
     } else { // handle regular response
         size_t message_size = strlen(response->status) + strlen(HTTP_LINE_END) +
-                              strlen(response->header) + strlen(HTTP_LINE_END) +
-                              strlen(response->body) + NULL_TERM_LEN;
+                              strlen(response->header) + NULL_TERM_LEN;
         char *raw_message = (char *)malloc(message_size);
-        snprintf(raw_message, message_size, "%s" HTTP_LINE_END "%s" HTTP_LINE_END "%s",
-                 response->status, response->header,
-                 response->body); // format message into char buf
+        snprintf(raw_message, message_size, "%s" HTTP_LINE_END "%s", response->status,
+                 response->header); // format message into char buf
         return raw_message;
     }
 }

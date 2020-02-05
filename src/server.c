@@ -193,7 +193,7 @@ void *connection_worker(void *fd) {
     close(_fd);
 
     // Sleep for a bit to simulate doing real work
-    // thread_debug("Sleeping\n");
+    thread_debug("Sleeping\n");
     sleep(SLEEPTIME_SECONDS);
     return NULL;
 }
